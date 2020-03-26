@@ -12,12 +12,14 @@ try:
 except ImportError:
     from io import StringIO
 from contextlib import contextmanager
+from functools import partial
 
 import param
 
 from panel import config
 from panel.io.notebook import load_notebook, render_model, render_mimebundle
 from panel.io.state import state
+from panel.models.comm_manager import CommManager as PnCommManager
 from panel.pane import HoloViews as HoloViewsPane
 from panel.widgets.player import PlayerBase
 from panel.viewable import Viewable
@@ -363,7 +365,18 @@ class Renderer(Exporter):
             doc = Document()
             with config.set(embed=embed):
                 model = plot.layout._render_model(doc, comm)
-            return render_model(model, comm) if embed else render_mimebundle(model, doc, comm)
+            ref = model.ref['id']
+            manager = PnCommManager(comm_id=comm.id, plot_id=ref)
+            client_comm = self.comm_manager.get_client_comm(
+                on_msg=partial(plot._on_msg, ref, manager),
+                on_error=partial(plot._on_error, ref),
+                on_stdout=partial(plot._on_stdout, ref)
+            )
+            manager.client_comm_id = client_comm.id
+            if embed:
+                return render_model(model, comm)
+            else:
+                return render_mimebundle(model, doc, comm, manager)
         else:
             html = self._figure_data(plot, fmt, as_script=True, **kwargs)
         data['text/html'] = html
