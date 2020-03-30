@@ -29,6 +29,7 @@ from ..core import Layout, HoloMap, AdjointLayout, DynamicMap
 from ..core.io import Exporter
 from ..core.options import Store, StoreOptions, SkipRendering, Compositor
 from ..core.util import unbound_dimensions
+from ..streams import Stream
 from . import Plot
 from .util import displayable, collate, initialize_dynamic
 
@@ -359,23 +360,31 @@ class Renderer(Exporter):
         data, metadata = {}, {}
         if isinstance(plot, Viewable):
             from bokeh.document import Document
-            dynamic = bool(plot.object.traverse(lambda x: x, [DynamicMap]))
-            embed = (not (dynamic or self.widget_mode == 'live') or config.embed)
+            registry = list(Stream.registry.items())
+            objects = plot.object.traverse(lambda x: x)
+            dynamic, streams = False, False
+            for source in objects:
+                dynamic |= isinstance(source, DynamicMap)
+                streams |= any(
+                    src is source or (src._plot_id is not None and src._plot_id == source._plot_id)
+                    for src, streams in registry for s in streams
+                )
+            embed = (not (dynamic or streams or self.widget_mode == 'live') or config.embed)
             comm = self.comm_manager.get_server_comm() if comm else None
             doc = Document()
             with config.set(embed=embed):
                 model = plot.layout._render_model(doc, comm)
-            ref = model.ref['id']
-            manager = PnCommManager(comm_id=comm.id, plot_id=ref)
-            client_comm = self.comm_manager.get_client_comm(
-                on_msg=partial(plot._on_msg, ref, manager),
-                on_error=partial(plot._on_error, ref),
-                on_stdout=partial(plot._on_stdout, ref)
-            )
-            manager.client_comm_id = client_comm.id
             if embed:
                 return render_model(model, comm)
             else:
+                ref = model.ref['id']
+                manager = PnCommManager(comm_id=comm.id, plot_id=ref)
+                client_comm = self.comm_manager.get_client_comm(
+                    on_msg=partial(plot._on_msg, ref, manager),
+                    on_error=partial(plot._on_error, ref),
+                    on_stdout=partial(plot._on_stdout, ref)
+                )
+                manager.client_comm_id = client_comm.id
                 return render_mimebundle(model, doc, comm, manager)
         else:
             html = self._figure_data(plot, fmt, as_script=True, **kwargs)
