@@ -73,6 +73,9 @@ jobs:
       after_failure: sleep 10
 
     - <<: *default
+      env: DESC="Python 3.5 tests" PYTHON_VERSION=3.5 HV_REQUIREMENTS="unit_tests"
+
+    - <<: *default
       env: DESC="Python 2.7 tests" PYTHON_VERSION=2.7 HV_REQUIREMENTS="unit_tests"
 
     - &basic_deps
