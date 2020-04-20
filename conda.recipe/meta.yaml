@@ -24,7 +24,7 @@ requirements:
     {% for dep in sdata['extras_require']['build'] %}
     {% if "python_version<" not in dep %}
     {% set dep_parts = dep.split(';') %}
-    - {{ dep_parts[0]|trim }}
+    - foo1
     {% endif %}
     {% endfor %}
   run:
@@ -32,13 +32,13 @@ requirements:
     {% for dep in sdata.get('install_requires',{}) %}
     {% if "python_version<" not in dep %}
     {% set dep_parts = dep.split(';') %}
-    - {{ dep_parts[0]|trim }}
+    - foo2
     {% endif %}
     {% endfor %}
     {% for dep in sdata['extras_require']['recommended'] %}
     {% if "python_version<" not in dep %}
     {% set dep_parts = dep.split(';') %}
-    - {{ dep_parts[0]|trim }}
+    - foo3
     {% endif %}
     {% endfor %}
 
